@@ -34,6 +34,9 @@ def menu(request):
 		dish = Dish.objects.filter(owner = restaurant.owner)
 		if Customer.objects.filter(id = cust_id).exists():
 			customer = Customer.objects.get(id = cust_id)
+			if customer.is_login == False:
+				return render(request, 'menu.html',{'dish' : dish, 'customer': customer, 'rest_id' : rest_id})
+
 			if Order.objects.filter(customer = customer,restaurant_id = restaurant.id, complete = False).exists():
 				order = Order.objects.get(customer = customer,restaurant_id = restaurant.id, complete = False)
 
@@ -51,7 +54,7 @@ def menu(request):
 def add(request):
 	if request.method == 'POST':	
 		dish_id = request.POST.get('try')
-		dish = Dish.objecst.get(id = dish_id)
+		dish = Dish.objects.get(id = dish_id)
 		cust_id = request.session["cust_id"]
 		customer = Customer.objects.get(id = cust_id)
 		if customer.is_login == False :
@@ -83,29 +86,34 @@ def add(request):
 
 def cart(request):
 	cust_id = request.session["cust_id"]
+	# print(f"this is {cust_id}")
 	customer = Customer.objects.get(id = cust_id)
-	#rest_id = request.POST.get('restid')
-	rest_id = request.session["rest_id"]
-	restaurant = Resturant.objects.get(id = rest_id)
+	if customer.is_login == True:
+		#rest_id = request.POST.get('restid')
+		rest_id = request.session["rest_id"]
+		restaurant = Resturant.objects.get(id = rest_id)
 
-	if Order.objects.filter(customer = customer,restaurant_id = restaurant.id, complete = False).exists():
-			order = Order.objects.get(customer = customer,restaurant_id = restaurant.id, complete = False)
+		if Order.objects.filter(customer = customer,restaurant_id = restaurant.id, complete = False).exists():
+				order = Order.objects.get(customer = customer,restaurant_id = restaurant.id, complete = False)
+
+		else:
+			order = Order.objects.create(customer = customer,restaurant_id = restaurant.id, complete = False,status="placed")
+			order.save()
+			print(order)
+
+		request.session["order_id"]=order.id
+
+
+
+		items = Orderdish.objects.filter(order = order).all()
+		
+		itemsSerializer=serializers.serialize("json",items)
+		itemsJSON = dumps(itemsSerializer)## for acessing data in js we need do send data in jsonformat
+		context = {'items':items,'order':order,'itemsJSON':itemsJSON,'restaurant':restaurant}
+		return render(request,'cart.html',context)
 
 	else:
-		order = Order.objects.create(customer = customer,restaurant_id = restaurant.id, complete = False,status="placed")
-		order.save()
-		print(order)
-
-	request.session["order_id"]=order.id
-
-
-
-	items = Orderdish.objects.filter(order = order).all()
-	
-	itemsSerializer=serializers.serialize("json",items)
-	itemsJSON = dumps(itemsSerializer)## for acessing data in js we need do send data in jsonformat
-	context = {'items':items,'order':order,'itemsJSON':itemsJSON,'restaurant':restaurant}
-	return render(request,'cart.html',context)
+		return redirect('customer_login')
 
 
 
